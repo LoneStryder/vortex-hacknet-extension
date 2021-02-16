@@ -16,175 +16,175 @@ let PF_EXE_LOCATION = String.raw`C:\Program Files (x86)\Steam\steamapps\common\H
 const EXT_FILE = 'extensioninfo.xml';
 
 // File extension used to identify Pathfinder Mods.
-const PF_FILE = '.dll'; 
+const PF_FILE = '.dll';
 
 // Include common tools used in Hacknet modding for convenience. Pathfinder should be run by default if present.
 const tools = [
-  {
-    id: 'PF',
-    name: 'Hacknet Pathfinder',
-    shortName: 'Pathfinder',
-    logo: 'pf.png',
-    executable: () => 'HacknetPathfinder.exe',
-    requiredFiles: [
-      'HacknetPathfinder.exe',
-    ],
-    relative: true,
-    defaultPrimary: true
-  },
-  {
-    id: 'HTE',
-    name: 'Hacknet Themes Editor',
-    logo: 'hte.png',
-    executable: () => 'Hacknet Themes Editor.exe',
-    requiredFiles: [
-      'Hacknet Themes Editor.exe',
-    ],
-  }
+	{
+		id: 'PF',
+		name: 'Hacknet Pathfinder',
+		shortName: 'Pathfinder',
+		logo: 'pf.png',
+		executable: () => 'HacknetPathfinder.exe',
+		requiredFiles: [
+			'HacknetPathfinder.exe',
+		],
+		relative: true,
+		defaultPrimary: true
+	},
+	{
+		id: 'HTE',
+		name: 'Hacknet Themes Editor',
+		logo: 'hte.png',
+		executable: () => 'Hacknet Themes Editor.exe',
+		requiredFiles: [
+			'Hacknet Themes Editor.exe',
+		],
+	}
 ];
 
 function findGame() {
-  return util.GameStoreHelper.findByAppId([STEAM_ID, GOG_ID])
-    .then(game => game.gamePath);
+	return util.GameStoreHelper.findByAppId([STEAM_ID, GOG_ID])
+		.then(game => game.gamePath);
 }
 
 
 function prepareForModding(discovery) {
-  PF_EXE_LOCATION = path.join(discovery.path, PF_EXE);
+	PF_EXE_LOCATION = path.join(discovery.path, PF_EXE);
 }
 
 function testExtension(files, gameId) {
-  let supported = (gameId === NEXUS_ID) &&
-    (files.find(file => path.basename(file).toLowerCase() === EXT_FILE) !== undefined);
-    
-  return Promise.resolve({
-    supported,
-    requiredFiles: [],
-  });
+	let supported = (gameId === NEXUS_ID) &&
+		(files.find(file => path.basename(file).toLowerCase() === EXT_FILE) !== undefined);
+
+	return Promise.resolve({
+		supported,
+		requiredFiles: [],
+	});
 }
 
 // Extensions need to be in seperate folders, so the name specified in ExtensionInfo.xml is used.
 function getExtensionName(destination, modFile) {
-  return fs.readFileAsync(path.join(destination, modFile))
-    .then(xmlData => {
-      let extName;
-      try {
-        extName = libxml.parseXmlString(xmlData).get('//Name').text();
-        extName = extName.replace(/[\/:*?"<>|]/g, '');
-        if (extName === '') {
-          return Promise.reject(new util.DataInvalid('Name missing in ExtensionInfo.xml'));
-        } else return Promise.resolve(extName);
-      } catch {
-        return Promise.reject(new util.DataInvalid('Failed to parse ExtensionInfo.xml'));
-      }
-    });
+	return fs.readFileAsync(path.join(destination, modFile))
+		.then(xmlData => {
+			let extName;
+			try {
+				extName = libxml.parseXmlString(xmlData).get('//Name').text();
+				extName = extName.replace(/[\/:*?"<>|]/g, '');
+				if (extName === '') {
+					return Promise.reject(new util.DataInvalid('Name missing in ExtensionInfo.xml'));
+				} else return Promise.resolve(extName);
+			} catch {
+				return Promise.reject(new util.DataInvalid('Failed to parse ExtensionInfo.xml'));
+			}
+		});
 }
 
 function installExtension(files, destinationPath) {
-  const modFile = files.find(file => path.basename(file).toLowerCase() === EXT_FILE);
-  if (!modFile) return Promise.reject('Not a valid Hacknet extension');
-  const idx = modFile.indexOf(path.basename(modFile));
-  const rootPath = path.dirname(modFile);
-  
-  return getExtensionName(destinationPath, modFile)
-    .then(extName => {
+	const modFile = files.find(file => path.basename(file).toLowerCase() === EXT_FILE);
+	if (!modFile) return Promise.reject('Not a valid Hacknet extension');
+	const idx = modFile.indexOf(path.basename(modFile));
+	const rootPath = path.dirname(modFile);
 
-      const filtered = files.filter(file => 
-        ((file.indexOf(rootPath) !== -1) 
-        && (!file.endsWith(path.sep))));
-    
-      const instructions = filtered.map(file => {
-        return {
-          type: 'copy',
-          source: file,
-          destination: path.join('Extensions', extName, file.substr(idx)),
-        };
-      });
+	return getExtensionName(destinationPath, modFile)
+		.then(extName => {
 
-      return Promise.resolve({ instructions });
-    });
+			const filtered = files.filter(file =>
+				((file.indexOf(rootPath) !== -1)
+				&& (!file.endsWith(path.sep))));
+
+			const instructions = filtered.map(file => {
+				return {
+					type: 'copy',
+					source: file,
+					destination: path.join('Extensions', extName, file.substr(idx)),
+				};
+			});
+
+			return Promise.resolve({ instructions });
+		});
 }
 
 function testPathfinderMod(files, gameId) {
-  let supported = (gameId === NEXUS_ID) &&
-    (files.find(file => path.extname(file).toLowerCase() === PF_FILE) !== undefined);
+	let supported = (gameId === NEXUS_ID) &&
+		(files.find(file => path.extname(file).toLowerCase() === PF_FILE) !== undefined);
 
-  return Promise.resolve({
-    supported,
-    requiredFiles: [],
-  });
+	return Promise.resolve({
+		supported,
+		requiredFiles: [],
+	});
 }
 
 // Note: Will install any archive containing a DLL as a Pathfinder mod. Hopefully won't cause issues with additional DLLs.
 function installPathfinderMod(files, api) {
-  fs.statAsync(PF_EXE_LOCATION)
-    .catch(() => {
-      warnPathfinder(api);
-    }
-  );
-  const modFile = files.find(file => path.extname(file).toLowerCase() === PF_FILE);
-  if (!modFile) return Promise.reject('Not a valid Pathfinder mod');
-  const idx = modFile.indexOf(path.basename(modFile));
-  const rootPath = path.dirname(modFile);
-  
-  const filtered = files.filter(file => 
-    ((file.indexOf(rootPath) !== -1) 
-    && (!file.endsWith(path.sep))));
+	fs.statAsync(PF_EXE_LOCATION)
+		.catch(() => {
+			warnPathfinder(api);
+		}
+	);
+	const modFile = files.find(file => path.extname(file).toLowerCase() === PF_FILE);
+	if (!modFile) return Promise.reject('Not a valid Pathfinder mod');
+	const idx = modFile.indexOf(path.basename(modFile));
+	const rootPath = path.dirname(modFile);
 
-  const instructions = filtered.map(file => {
-    return {
-      type: 'copy',
-      source: file,
-      destination: path.join('Mods', file.substr(idx)),
-    };
-  });
+	const filtered = files.filter(file =>
+		((file.indexOf(rootPath) !== -1)
+		&& (!file.endsWith(path.sep))));
 
-  return Promise.resolve({ instructions });
+	const instructions = filtered.map(file => {
+		return {
+			type: 'copy',
+			source: file,
+			destination: path.join('Mods', file.substr(idx)),
+		};
+	});
+
+	return Promise.resolve({ instructions });
 }
 
 function warnPathfinder(api) {
-  api.sendNotification({
-    id: 'pathfinder-missing',
-    type: 'warning',
-    title: 'Pathfinder not installed',
-    message: 'Hacknet Pathfinder is required to use Pathfinder mods',
-    actions: [
-      {
-        title: 'Get Pathfinder',
-        action: () => util.opn('https://www.nexusmods.com/hacknet/mods/1').catch(() => undefined)
-      }
-    ]
-  });
+	api.sendNotification({
+		id: 'pathfinder-missing',
+		type: 'warning',
+		title: 'Pathfinder not installed',
+		message: 'Hacknet Pathfinder is required to use Pathfinder mods',
+		actions: [
+			{
+				title: 'Get Pathfinder',
+				action: () => util.opn('https://www.nexusmods.com/hacknet/mods/1').catch(() => undefined)
+			}
+		]
+	});
 }
 
 function main(context) {
 	context.registerGame({
-    id: NEXUS_ID,
-    name: 'Hacknet',
-    mergeMods: true,
-    requiresCleanup: true,
-    queryPath: findGame,
-    supportedTools: tools,
-    queryModPath: () => '',
-    logo: 'gameart.jpg',
-    executable: () => 'Hacknet.exe',
-    requiredFiles: [
-      'Hacknet.bmp'
-    ],
-    setup: prepareForModding,
-    environment: {
-      SteamAPPId: STEAM_ID,
-    },
-    details: {
-      steamAppId: parseInt(STEAM_ID),
-      gogAppId: GOG_ID,
-    },
-  });
-  context.registerInstaller('hn-extension', 25, testExtension, installExtension);
-  context.registerInstaller('hn-pathfinder-mod', 25, testPathfinderMod, (files, destinationPath) => installPathfinderMod(files, destinationPath, context.api));
-  return true;
+		id: NEXUS_ID,
+		name: 'Hacknet',
+		mergeMods: true,
+		requiresCleanup: true,
+		queryPath: findGame,
+		supportedTools: tools,
+		queryModPath: () => '',
+		logo: 'gameart.jpg',
+		executable: () => 'Hacknet.exe',
+		requiredFiles: [
+			'Hacknet.bmp'
+		],
+		setup: prepareForModding,
+		environment: {
+			SteamAPPId: STEAM_ID,
+		},
+		details: {
+			steamAppId: parseInt(STEAM_ID),
+			gogAppId: GOG_ID,
+		},
+	});
+	context.registerInstaller('hn-extension', 25, testExtension, installExtension);
+	context.registerInstaller('hn-pathfinder-mod', 25, testPathfinderMod, (files, destinationPath) => installPathfinderMod(files, destinationPath, context.api));
+	return true;
 }
 
 module.exports = {
-  default: main,
+	default: main,
 };
