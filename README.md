@@ -1,4 +1,4 @@
-# Hacknet Support for Vortex
+# [Hacknet Support for Vortex](https://www.nexusmods.com/site/mods/124)
 An extension for [Vortex Mod Manager](https://www.nexusmods.com/about/vortex/) to provide support for managing [Hacknet](https://hacknet-os.com) Extensions and [Pathfinder](https://github.com/Arkhist/Hacknet-Pathfinder) mods.
 
 ## Installation
